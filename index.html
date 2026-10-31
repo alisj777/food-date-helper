@@ -297,6 +297,7 @@ input[type=date], input[type=text], textarea {
 
     <h3>Upload to Google Sheet</h3>
     <div class="row"><span class="msg" id="wzUpload"></span><button id="wzFlush">Send now</button></div>
+    <div class="row"><button id="wzResend">Resend all records on this phone</button><span class="msg">Safe to repeat: the sheet skips rows it already has</span></div>
 
     <h3>Data</h3>
     <div class="row">
@@ -321,8 +322,8 @@ input[type=date], input[type=text], textarea {
    LOG_ENDPOINT: the Web app URL from the Google Apps Script
    (it ends with /exec). Leave "" to keep data on the phone only.
    ========================================================= */
-const LOG_ENDPOINT = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnTgvuj3tk0mjr95F8ixqNBme8sZDb5qO9M6RqyVUneNvjB3SRl-79cMqAqAhplsF40CTNv016K3kEM3VWegcxYOxfLlJ28yUsgB16vVlBkJrKNZon76nGcNq-dZ0tZqEgQCX6ZW7Svavjb3qMhtQxAVW05g0GKi7v61nq4rP5pvIgJ9th2l3WLDEcTAPLCULl5O2KQtSCPCJrWL4sv1nb1db6AC9UOavGzhnH-X-pCqCMblxcEhjUSwaEsLu0rINJONdWRpMUVCzpXFSPUkO_b5dAlgTA&lib=MR50xVYD6dGtQ94s85UvjCW0LV6oXdSdI";
-const RESEARCHER_CONTACT = ""Ruojin Li, u1234567@anu.edu.au";
+const LOG_ENDPOINT = "https://script.google.com/macros/s/AKfycbz3zF2b-g5fUjVN4ihhUldte6Y1Fb2MUuJNuDKHJHzRleVGA7l4ROutv2kOBpitfNGQVw/exec";
+const RESEARCHER_CONTACT = "Ruojin Li, u7861824@anu.edu.au";
 const WITHDRAW_DEADLINE = "5 November 2026, 23:59 AEDT";
 
 /* Counterbalancing plan: participant code -> product set used with the app, and order */
@@ -715,6 +716,7 @@ function renderUploadStatus() {
   const el = document.getElementById("wzUpload");
   if (!el) return;
   if (!LOG_ENDPOINT) el.textContent = "Not connected: LOG_ENDPOINT is empty, data stays on this phone.";
+  else if (!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(LOG_ENDPOINT)) el.textContent = "Wrong LOG_ENDPOINT: use the Web app URL from Deploy > Manage deployments. It starts with https://script.google.com/macros/s/ and ends with /exec.";
   else if (!state.consented) el.textContent = "Waiting for the participant to agree to the notice.";
   else if (uploadQueue.length) el.textContent = uploadQueue.length + " records waiting to upload.";
   else el.textContent = "All records uploaded.";
@@ -1251,6 +1253,14 @@ function init() {
     showWelcome();
   };
   document.getElementById("wzFlush").onclick = () => { renderUploadStatus(); scheduleFlush(0); };
+  document.getElementById("wzResend").onclick = () => {
+    const queued = new Set(uploadQueue.map(r => r.row_id));
+    const again = logRows.filter(r => r.row_id && r.session_id && r.participant && !queued.has(r.row_id));
+    uploadQueue = uploadQueue.concat(again);
+    save(); renderUploadStatus();
+    dataMsg(again.length + " records added to the upload queue.");
+    scheduleFlush(0);
+  };
   document.getElementById("wzNext").onchange = e => { state.nextOverride = e.target.value; save(); };
   document.getElementById("wzMisread").onchange = e => { state.misreadNext = e.target.checked; save(); };
   document.getElementById("wzFail").onchange = e => { state.failNext = e.target.checked; save(); };
