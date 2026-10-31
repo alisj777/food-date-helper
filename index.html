@@ -1,6 +1,9 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Food Date Helper</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
@@ -42,6 +45,9 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html, body { margin: 0; }
+img { max-width: 100%; }
 body {
   background: var(--bg); color: var(--text); font-family: var(--font);
   font-size: 17px; line-height: 1.5; -webkit-text-size-adjust: 100%;
@@ -84,10 +90,19 @@ h2 { font-size: 15px; font-weight: 600; color: var(--muted); text-transform: upp
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-.dock .btn { max-width: 520px; margin: 0 auto; padding: 18px; font-size: 18px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: var(--shadow); }
+.dock-inner { max-width: 520px; margin: 0 auto; display: flex; gap: 10px; }
+.dock .btn { padding: 16px 12px; font-size: 17px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow); margin: 0; }
+#scanBtn { flex: 1.6; }
+#manualBtn { flex: 1; background: var(--surface); }
 .dock svg { width: 22px; height: 22px; stroke: currentColor; }
 .item { display: flex; align-items: center; gap: 14px; cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; }
 .item .meta { flex: 1; min-width: 0; }
+.thumb { flex: none; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; background: var(--accent-soft); display: grid; place-items: center; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb svg { width: 24px; height: 24px; stroke: var(--accent); }
+.formtitle { font-size: 20px; font-weight: 700; margin: 0 0 6px; }
+.photopick { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.photopick .photo { margin-bottom: 0; }
 .item .name { font-weight: 600; overflow-wrap: anywhere; }
 .item .sub { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
 .tag { flex: none; font-size: 12px; font-weight: 700; letter-spacing: .05em; border-radius: 6px; padding: 3px 7px; }
@@ -156,6 +171,8 @@ input[type=date], input[type=text], textarea {
 .simday { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 </style>
 
+</head>
+<body>
 <div class="app">
   <header>
     <div class="brand" id="brand">Food Date Helper</div>
@@ -193,6 +210,10 @@ input[type=date], input[type=text], textarea {
     <div class="card" id="resultCard"></div>
   </section>
 
+  <section id="screenForm" class="hidden">
+    <div class="card" id="formCard"></div>
+  </section>
+
   <section id="screenDetail" class="hidden">
     <button class="back" id="detailBack">‹ <span data-t="myFood">My food</span></button>
     <div class="card" id="detailCard"></div>
@@ -200,12 +221,19 @@ input[type=date], input[type=text], textarea {
 </div>
 
 <div class="dock" id="dock">
-  <button class="btn" id="scanBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg>
-    <span data-t="scan">Scan date label</span>
-  </button>
+  <div class="dock-inner">
+    <button class="btn" id="scanBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg>
+      <span data-t="scan">Scan date label</span>
+    </button>
+    <button class="btn secondary" id="manualBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <span data-t="addManual">Add manually</span>
+    </button>
+  </div>
 </div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="photoInput" accept="image/*" class="hidden">
 
 <div id="bannerHost"></div>
 
@@ -307,6 +335,15 @@ const PRODUCT_SETS = {
 const T = {
   en: {
     locale: "en-AU",
+    nameLabel: "Food name",
+    addManual: "Add manually",
+    photoLabel: "Photo (optional)",
+    takePhoto: "Add photo",
+    changePhoto: "Change photo",
+    newItem: "Add food",
+    namePlaceholder: "e.g. Milk 2L",
+    required: "Please fill in the name and the date, and choose the date type.",
+    addItem: "Add to my food",
     title: "Food Date Helper", myFood: "My food",
     empty: "No food yet. Scan a package to add it.",
     scan: "Scan date label", scanHint: "Point the camera at the date printed on the package.",
@@ -330,6 +367,15 @@ const T = {
   },
   zh: {
     locale: "zh-CN",
+    nameLabel: "食物名称",
+    addManual: "手动添加",
+    photoLabel: "照片（可选）",
+    takePhoto: "添加照片",
+    changePhoto: "更换照片",
+    newItem: "添加食物",
+    namePlaceholder: "例如：牛奶 2L",
+    required: "请填写名称和日期，并选择日期类型。",
+    addItem: "加入我的食物",
     title: "食品日期助手", myFood: "我的食物",
     empty: "还没有食物。扫描包装即可添加。",
     scan: "扫描日期标签", scanHint: "将摄像头对准包装上印的日期。",
@@ -353,6 +399,15 @@ const T = {
   },
   vi: {
     locale: "vi-VN",
+    nameLabel: "Tên thực phẩm",
+    addManual: "Thêm thủ công",
+    photoLabel: "Ảnh (không bắt buộc)",
+    takePhoto: "Thêm ảnh",
+    changePhoto: "Đổi ảnh",
+    newItem: "Thêm thực phẩm",
+    namePlaceholder: "Ví dụ: Sữa 2L",
+    required: "Vui lòng nhập tên và ngày, và chọn loại ngày.",
+    addItem: "Thêm vào thực phẩm của tôi",
     title: "Trợ lý hạn sử dụng", myFood: "Thực phẩm của tôi",
     empty: "Chưa có thực phẩm. Hãy quét bao bì để thêm.",
     scan: "Quét nhãn ngày", scanHint: "Hướng camera vào ngày in trên bao bì.",
@@ -376,6 +431,15 @@ const T = {
   },
   ne: {
     locale: "ne-NP",
+    nameLabel: "खानाको नाम",
+    addManual: "आफैं थप्नुहोस्",
+    photoLabel: "फोटो (ऐच्छिक)",
+    takePhoto: "फोटो थप्नुहोस्",
+    changePhoto: "फोटो बदल्नुहोस्",
+    newItem: "खाना थप्नुहोस्",
+    namePlaceholder: "जस्तै: दूध 2L",
+    required: "कृपया नाम र मिति लेख्नुहोस्, र मितिको प्रकार छान्नुहोस्।",
+    addItem: "मेरो खानामा थप्नुहोस्",
     title: "खाद्य मिति सहायक", myFood: "मेरो खाना",
     empty: "अहिलेसम्म खाना छैन। थप्न प्याकेट स्क्यान गर्नुहोस्।",
     scan: "मिति लेबल स्क्यान गर्नुहोस्", scanHint: "क्यामेरालाई प्याकेटमा छापिएको मितितर्फ राख्नुहोस्।",
@@ -399,6 +463,15 @@ const T = {
   },
   bn: {
     locale: "bn-BD",
+    nameLabel: "খাবারের নাম",
+    addManual: "নিজে যোগ করুন",
+    photoLabel: "ছবি (ঐচ্ছিক)",
+    takePhoto: "ছবি যোগ করুন",
+    changePhoto: "ছবি বদলান",
+    newItem: "খাবার যোগ করুন",
+    namePlaceholder: "যেমন: দুধ 2L",
+    required: "অনুগ্রহ করে নাম ও তারিখ লিখুন এবং তারিখের ধরন বেছে নিন।",
+    addItem: "আমার খাবারে যোগ করুন",
     title: "খাবারের তারিখ সহায়ক", myFood: "আমার খাবার",
     empty: "এখনও কোনো খাবার নেই। যোগ করতে প্যাকেট স্ক্যান করুন।",
     scan: "তারিখের লেবেল স্ক্যান করুন", scanHint: "প্যাকেটে ছাপা তারিখের দিকে ক্যামেরা ধরুন।",
@@ -422,6 +495,15 @@ const T = {
   },
   ko: {
     locale: "ko-KR",
+    nameLabel: "식품 이름",
+    addManual: "직접 추가",
+    photoLabel: "사진 (선택)",
+    takePhoto: "사진 추가",
+    changePhoto: "사진 변경",
+    newItem: "식품 추가",
+    namePlaceholder: "예: 우유 2L",
+    required: "이름과 날짜를 입력하고 날짜 유형을 선택하세요.",
+    addItem: "내 식품에 추가",
     title: "식품 날짜 도우미", myFood: "내 식품",
     empty: "아직 식품이 없습니다. 포장을 스캔해서 추가하세요.",
     scan: "날짜 라벨 스캔", scanHint: "포장에 인쇄된 날짜에 카메라를 맞추세요.",
@@ -445,6 +527,15 @@ const T = {
   },
   ja: {
     locale: "ja-JP",
+    nameLabel: "食品名",
+    addManual: "手動で追加",
+    photoLabel: "写真（任意）",
+    takePhoto: "写真を追加",
+    changePhoto: "写真を変更",
+    newItem: "食品を追加",
+    namePlaceholder: "例：牛乳 2L",
+    required: "名前と日付を入力し、日付の種類を選んでください。",
+    addItem: "私の食品に追加",
     title: "食品日付アシスタント", myFood: "私の食品",
     empty: "まだ食品がありません。パッケージをスキャンして追加してください。",
     scan: "日付ラベルをスキャン", scanHint: "パッケージに印刷された日付にカメラを向けてください。",
@@ -479,7 +570,6 @@ let state = {
 };
 let logRows = [];
 let pending = null;      // result waiting for confirmation
-let editing = false;
 let currentDetail = null;
 
 function load() {
@@ -530,7 +620,15 @@ async function exportCSV() {
   const filename = "prototype-log-" + (state.participant || "session") + "-" + stamp + ".csv";
   let dl = null;
   try { dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; } catch (e) { dl = null; }
-  if (!dl) { dataMsg("Saving files is not available here. Copy the text below instead."); showCsvBox(); return; }
+  if (!dl) {
+    try {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csvText()], { type: "text/csv" }));
+      a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      dataMsg("Saved " + filename + ". If nothing downloaded, use Copy log.");
+    } catch (e) { dataMsg("Saving is not available here. Copy the text below instead."); showCsvBox(); }
+    return;
+  }
   try {
     await dl.save({ filename: filename, data: csvText() });
     dataMsg("Saved " + filename);
@@ -588,12 +686,13 @@ function applyLang() {
 }
 
 /* ---------------- Screens ---------------- */
+const SCREENS = ["screenHome", "screenScan", "screenResult", "screenForm", "screenDetail"];
 function show(id) {
-  ["screenHome", "screenScan", "screenResult", "screenDetail"].forEach(s =>
-    document.getElementById(s).classList.toggle("hidden", s !== id));
+  SCREENS.forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
   document.getElementById("dock").classList.toggle("hidden", id !== "screenHome");
   window.scrollTo(0, 0);
 }
+function visible(id) { return !document.getElementById(id).classList.contains("hidden"); }
 function badgeHTML(type) {
   const short = type === "useBy" ? t().useByShort : t().bestBeforeShort;
   return '<div class="badge ' + type + '">' + TYPE_LABEL[type] + '<small>' + short + '</small></div>';
@@ -602,6 +701,10 @@ function explainHTML(type) {
   return '<div class="explain ' + type + '">' + (type === "useBy" ? t().useByExplain : t().bestBeforeExplain) + '</div>';
 }
 function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+const FOOD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 11.1a2 2 0 0 1-2 1.9H8.2a2 2 0 0 1-2-1.9L5 8z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg>';
+function thumbHTML(photo) {
+  return '<div class="thumb">' + (photo ? '<img src="' + photo + '" alt="">' : FOOD_ICON) + '</div>';
+}
 
 function renderList() {
   const host = document.getElementById("list");
@@ -612,7 +715,7 @@ function renderList() {
   const items = state.items.slice().sort((a, b) => a.date.localeCompare(b.date));
   host.innerHTML = items.map(it => {
     const st = statusOf(it.date);
-    return '<button class="card item" data-id="' + it.uid + '">' +
+    return '<button class="card item" data-id="' + it.uid + '">' + thumbHTML(it.photo) +
       '<div class="meta"><div class="name">' + escapeHTML(it.name) + '</div>' +
       '<div class="sub">' + fmtDate(it.date) + '</div>' +
       '<div class="status ' + st.cls + '">' + st.text + '</div></div>' +
@@ -621,57 +724,116 @@ function renderList() {
   host.querySelectorAll(".item").forEach(el => el.addEventListener("click", () => openDetail(el.dataset.id, "list")));
 }
 
+/* Scan result: check, then confirm or correct */
 function renderResult() {
-  const card = document.getElementById("resultCard");
   const p = pending;
+  if (p.failed) { openForm("scanEdit", p); return; }
+  const card = document.getElementById("resultCard");
   const photo = p.photo ? '<img class="photo" src="' + p.photo + '" alt="">' : "";
-  if (p.failed && !editing) { editing = true; }
-  if (editing) {
-    card.innerHTML = photo +
-      (p.failed ? '<p class="status past">' + t().readFail + '</p>' : '<h2>' + t().edit + '</h2>') +
-      '<div class="name" style="font-weight:700;margin-top:8px">' + escapeHTML(p.name) + '</div>' +
-      '<label class="field">' + t().date + '<input type="date" id="editDate" value="' + (p.date || "") + '"></label>' +
-      '<label class="field">' + t().type + '</label>' +
-      '<div class="radio-row">' +
-      '<label><input type="radio" name="etype" value="useBy"' + (p.type === "useBy" ? " checked" : "") + '>Use by</label>' +
-      '<label><input type="radio" name="etype" value="bestBefore"' + (p.type === "bestBefore" ? " checked" : "") + '>Best before</label>' +
-      '</div>' +
-      '<div class="btn-row"><button class="btn secondary" id="editCancel">' + t().cancel + '</button>' +
-      '<button class="btn" id="editSave">' + t().save + '</button></div>';
-    document.getElementById("editCancel").onclick = () => {
-      if (p.failed) { log("result_cancelled", p.productId); pending = null; editing = false; show("screenHome"); renderList(); return; }
-      editing = false; renderResult();
-    };
-    document.getElementById("editSave").onclick = () => {
-      const nd = document.getElementById("editDate").value;
-      const ntEl = document.querySelector('input[name=etype]:checked');
-      if (!nd || !ntEl) return;
-      const nt = ntEl.value;
-      if (nd !== p.date) log("edit_date", p.productId + " " + (p.date || "none") + " -> " + nd);
-      if (nt !== p.type) log("edit_type", p.productId + " " + (p.type || "none") + " -> " + nt);
-      p.date = nd; p.type = nt; p.failed = false; editing = false;
-      renderResult();
-    };
-    return;
-  }
   const st = statusOf(p.date);
   card.innerHTML = photo +
-    '<div style="margin-top:12px;font-weight:700">' + escapeHTML(p.name) + '</div>' +
+    '<div style="font-weight:700;font-size:19px">' + escapeHTML(p.name) + '</div>' +
     '<div style="margin-top:10px">' + badgeHTML(p.type) + '</div>' +
     '<div class="bigdate">' + fmtDate(p.date) + '</div>' +
     '<div class="status ' + st.cls + '">' + st.text + '</div>' +
     explainHTML(p.type) +
-    '<h2>' + t().checkTitle + '</h2><div>' + t().isCorrect + '</div>' +
+    '<div class="q">' + t().checkTitle + '</div><div>' + t().isCorrect + '</div>' +
     '<button class="btn" id="resConfirm">' + t().confirm + '</button>' +
     '<button class="btn secondary" id="resEdit">' + t().edit + '</button>' +
     '<div class="note">' + t().checkLabel + '</div>';
   document.getElementById("resConfirm").onclick = () => {
-    const item = { uid: String(Date.now()), productId: p.productId, name: p.name, date: p.date, type: p.type, misread: p.misread };
+    const item = { uid: String(Date.now()), productId: p.productId, name: p.name, date: p.date, type: p.type, photo: p.photo || "", misread: p.misread };
     state.items.push(item);
-    log("confirm_add", p.productId + " date=" + p.date + " type=" + p.type + (p.misread ? " (was misread, not corrected)" : ""));
+    log("confirm_add", p.productId + " name=" + p.name + " date=" + p.date + " type=" + p.type + (p.misread && p.date !== p.trueDate ? " (was misread, not corrected)" : ""));
     pending = null; save(); renderWizardSelects(); show("screenHome"); renderList();
   };
-  document.getElementById("resEdit").onclick = () => { log("edit_open", p.productId); editing = true; renderResult(); };
+  document.getElementById("resEdit").onclick = () => { log("edit_open", p.productId); openForm("scanEdit", p); };
+}
+
+/* One form for three jobs: correcting a scan, adding food by hand, changing saved food */
+let form = null;
+function openForm(mode, data, uid) {
+  form = { mode: mode, uid: uid || null, data: { name: data.name || "", date: data.date || "", type: data.type || "", photo: data.photo || "" } };
+  renderForm();
+  show("screenForm");
+}
+function syncForm() {
+  if (!form) return;
+  const n = document.getElementById("fName"), d = document.getElementById("fDate");
+  const ty = document.querySelector('input[name=ftype]:checked');
+  if (n) form.data.name = n.value;
+  if (d) form.data.date = d.value;
+  if (ty) form.data.type = ty.value;
+}
+function renderForm() {
+  const f = form, d = f.data, L = t();
+  const failed = f.mode === "scanEdit" && pending && pending.failed;
+  const heading = f.mode === "manual" ? L.newItem : L.edit;
+  document.getElementById("formCard").innerHTML =
+    '<div class="formtitle">' + heading + '</div>' +
+    (failed ? '<p class="status past">' + L.readFail + '</p>' : '') +
+    '<div class="field">' + L.photoLabel + '</div>' +
+    '<div class="photopick">' + (d.photo ? '<img class="photo" src="' + d.photo + '" alt="">' : '') +
+    '<button class="btn quiet" id="fPhoto" type="button" style="margin-top:0">' + (d.photo ? L.changePhoto : L.takePhoto) + '</button></div>' +
+    '<label class="field" for="fName">' + L.nameLabel + '</label>' +
+    '<input type="text" id="fName" placeholder="' + escapeHTML(L.namePlaceholder) + '" value="' + escapeHTML(d.name) + '">' +
+    '<label class="field" for="fDate">' + L.date + '</label>' +
+    '<input type="date" id="fDate" value="' + d.date + '">' +
+    '<div class="field">' + L.type + '</div>' +
+    '<div class="radio-row">' +
+    '<label><input type="radio" name="ftype" value="useBy"' + (d.type === "useBy" ? " checked" : "") + '>Use by</label>' +
+    '<label><input type="radio" name="ftype" value="bestBefore"' + (d.type === "bestBefore" ? " checked" : "") + '>Best before</label>' +
+    '</div>' +
+    '<p class="status past hidden" id="fErr">' + L.required + '</p>' +
+    '<div class="btn-row"><button class="btn secondary" id="fCancel" type="button">' + L.cancel + '</button>' +
+    '<button class="btn" id="fSave" type="button">' + (f.mode === "manual" ? L.addItem : L.save) + '</button></div>';
+  document.getElementById("fPhoto").onclick = () => { syncForm(); document.getElementById("photoInput").click(); };
+  document.getElementById("fCancel").onclick = cancelForm;
+  document.getElementById("fSave").onclick = saveForm;
+}
+function changes(before, after) {
+  const parts = ["name", "date", "type"].filter(k => (before[k] || "") !== (after[k] || ""))
+    .map(k => k + ": " + (before[k] || "none") + " -> " + after[k]);
+  if ((before.photo || "") !== (after.photo || "")) parts.push("photo changed");
+  return parts.join("; ");
+}
+function saveForm() {
+  syncForm();
+  const d = form.data;
+  d.name = d.name.trim();
+  if (!d.name || !d.date || !d.type) { document.getElementById("fErr").classList.remove("hidden"); return; }
+  if (form.mode === "scanEdit") {
+    const diff = changes(pending, d);
+    if (diff) log("edit_scan", pending.productId + " " + diff);
+    Object.assign(pending, { name: d.name, date: d.date, type: d.type, photo: d.photo, failed: false });
+    form = null; renderResult(); show("screenResult");
+  } else if (form.mode === "manual") {
+    const item = { uid: String(Date.now()), productId: "manual", name: d.name, date: d.date, type: d.type, photo: d.photo };
+    state.items.push(item);
+    log("manual_add", "name=" + d.name + " date=" + d.date + " type=" + d.type + (d.photo ? " with photo" : ""));
+    form = null; save(); renderWizardSelects(); show("screenHome"); renderList();
+  } else {
+    const it = state.items.find(x => x.uid === form.uid);
+    if (it) {
+      const diff = changes(it, d);
+      if (diff) log("edit_item", it.productId + " " + diff);
+      Object.assign(it, { name: d.name, date: d.date, type: d.type, photo: d.photo });
+      save(); renderWizardSelects();
+    }
+    const uid = form.uid; form = null; currentDetail = uid; renderDetail(); show("screenDetail");
+  }
+}
+function cancelForm() {
+  const mode = form.mode, uid = form.uid;
+  form = null;
+  if (mode === "scanEdit") {
+    if (pending && pending.failed) { log("result_cancelled", pending.productId); pending = null; show("screenHome"); renderList(); }
+    else { renderResult(); show("screenResult"); }
+  } else if (mode === "manual") {
+    log("manual_cancelled"); show("screenHome"); renderList();
+  } else {
+    currentDetail = uid; renderDetail(); show("screenDetail");
+  }
 }
 
 function openDetail(uid, source) {
@@ -689,22 +851,50 @@ function renderDetail() {
   let pastMsg = "";
   if (st.n < 0) pastMsg = '<p class="status past">' + (it.type === "useBy" ? t().expiredUseBy : t().expiredBest) + '</p>';
   document.getElementById("detailCard").innerHTML =
-    '<div style="font-weight:700">' + escapeHTML(it.name) + '</div>' +
+    (it.photo ? '<img class="photo" src="' + it.photo + '" alt="">' : '') +
+    '<div style="font-weight:700;font-size:19px">' + escapeHTML(it.name) + '</div>' +
     '<div style="margin-top:10px">' + badgeHTML(it.type) + '</div>' +
     '<div class="bigdate">' + fmtDate(it.date) + '</div>' +
     '<div class="status ' + st.cls + '">' + st.text + '</div>' + pastMsg +
     explainHTML(it.type) +
+    '<button class="btn quiet" id="dEdit">' + t().edit + '</button>' +
     '<div class="btn-row"><button class="btn" id="dEaten">' + t().eaten + '</button>' +
-    '<button class="btn danger" id="dBinned">' + t().binned + '</button></div>' +
+    '<button class="btn secondary" id="dBinned" style="color:var(--useby)">' + t().binned + '</button></div>' +
     '<div class="note">' + t().checkLabel + '</div>';
+  document.getElementById("dEdit").onclick = () => { log("edit_item_open", it.productId); openForm("itemEdit", it, it.uid); };
   document.getElementById("dEaten").onclick = () => decide(it, "eaten");
   document.getElementById("dBinned").onclick = () => decide(it, "thrown_away");
 }
 function decide(it, what) {
   const st = statusOf(it.date);
-  log("decision_" + what, it.productId + " type=" + it.type + " days_to_date=" + st.n);
+  log("decision_" + what, it.productId + " name=" + it.name + " type=" + it.type + " days_to_date=" + st.n);
   state.items = state.items.filter(x => x.uid !== it.uid);
   save(); renderWizardSelects(); show("screenHome"); renderList();
+}
+
+/* Photos are shrunk so they can be kept on the phone with the list */
+function shrinkImage(file, max) {
+  max = max || 480;
+  return new Promise((resolve, reject) => {
+    let url;
+    try { url = URL.createObjectURL(file); } catch (e) { reject(e); return; }
+    const img = new Image();
+    const timer = setTimeout(() => reject(new Error("timeout")), 4000);
+    img.onload = () => {
+      clearTimeout(timer);
+      try {
+        const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        try { URL.revokeObjectURL(url); } catch (e) { }
+        resolve(c.toDataURL("image/jpeg", 0.72));
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => { clearTimeout(timer); reject(new Error("decode")); };
+    img.src = url;
+  });
 }
 
 /* ---------------- Scanning (Wizard of Oz) ---------------- */
@@ -728,8 +918,9 @@ function misreadDate(iso) {
   return isoDate(d);
 }
 function handlePhoto(file) {
-  const url = URL.createObjectURL(file);
-  document.getElementById("scanPhoto").src = url;
+  let preview = "";
+  try { preview = URL.createObjectURL(file); } catch (e) { }
+  document.getElementById("scanPhoto").src = preview;
   show("screenScan");
   const prod = pickNextProduct();
   const realDate = resolveDate(prod.date);
@@ -740,18 +931,19 @@ function handlePhoto(file) {
   document.getElementById("wzMisread").checked = false;
   save();
   log("photo_taken", prod.id);
-  setTimeout(() => {
+  const shrunk = shrinkImage(file).catch(() => "");
+  const wait = new Promise(r => setTimeout(r, 1600));
+  Promise.all([shrunk, wait]).then(([small]) => {
     pending = {
-      productId: prod.id, name: prod.name, photo: url, failed: failed, misread: misread,
+      productId: prod.id, name: prod.name, photo: small || "", failed: failed, misread: misread,
       date: failed ? "" : (misread ? misreadDate(realDate) : realDate),
       type: failed ? "" : prod.type, trueDate: realDate
     };
-    editing = false;
     log(failed ? "result_failed" : "result_shown",
       prod.id + " shown_date=" + (pending.date || "none") + " true_date=" + realDate + " type=" + prod.type + (misread ? " MISREAD" : ""));
-    renderResult();
-    show("screenResult");
-  }, 1600);
+    if (failed) { openForm("scanEdit", pending); }
+    else { renderResult(); show("screenResult"); }
+  });
 }
 
 /* ---------------- Reminder ---------------- */
@@ -837,8 +1029,9 @@ function init() {
     const from = state.lang; state.lang = e.target.value; save();
     log("language_change", from + " -> " + state.lang);
     applyLang(); renderList();
-    if (!document.getElementById("screenResult").classList.contains("hidden") && pending) renderResult();
-    if (!document.getElementById("screenDetail").classList.contains("hidden")) renderDetail();
+    if (visible("screenResult") && pending) renderResult();
+    if (visible("screenForm") && form) { syncForm(); renderForm(); }
+    if (visible("screenDetail")) renderDetail();
   });
 
   const camera = document.getElementById("cameraInput");
@@ -851,8 +1044,21 @@ function init() {
 
   document.getElementById("resultBack").onclick = () => {
     if (pending) log("result_cancelled", pending.productId);
-    pending = null; editing = false; show("screenHome"); renderList();
+    pending = null; show("screenHome"); renderList();
   };
+  document.getElementById("manualBtn").addEventListener("click", () => {
+    unlockAudio(); log("manual_open"); openForm("manual", {});
+  });
+  const photoInput = document.getElementById("photoInput");
+  photoInput.addEventListener("change", () => {
+    const f = photoInput.files && photoInput.files[0];
+    photoInput.value = "";
+    if (!f || !form) return;
+    shrinkImage(f).then(url => {
+      if (!form) return;
+      form.data.photo = url; renderForm();
+    }).catch(() => { });
+  });
   document.getElementById("detailBack").onclick = () => { show("screenHome"); renderList(); };
 
   // Hidden wizard: tap the title 3 times within 1 second
@@ -910,5 +1116,5 @@ function init() {
 }
 init();
 </script>
-
-</body></html>
+</body>
+</html>
