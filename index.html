@@ -168,6 +168,11 @@ input[type=date], input[type=text], textarea {
 .wizard .log { font-family: var(--mono); font-size: 12px; max-height: 140px; overflow: auto; background: var(--bg); padding: 8px; border-radius: 8px; white-space: pre-wrap; }
 .wizard textarea { font-family: var(--mono); font-size: 11px; height: 120px; }
 .wizard .msg { color: var(--muted); font-size: 13px; }
+.footnote { text-align: center; margin-top: 18px; }
+.notice p { margin: 0 0 10px; font-size: 15px; }
+.notice h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
+.agree { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-size: 15px; }
+.agree input { margin-top: 4px; width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
 .simday { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 </style>
 
@@ -190,9 +195,14 @@ input[type=date], input[type=text], textarea {
     </label>
   </header>
 
+  <section id="screenWelcome" class="hidden">
+    <div class="card" id="welcomeCard"></div>
+  </section>
+
   <section id="screenHome">
     <h2 data-t="myFood">My food</h2>
     <div id="list" class="stack"></div>
+    <p class="hint footnote" id="footNote"></p>
   </section>
 
   <section id="screenScan" class="hidden">
@@ -252,6 +262,7 @@ input[type=date], input[type=text], textarea {
       <label>Order <select id="wzOrder"><option value="manual-first">manual first</option><option value="app-first">app first</option></select></label>
     </div>
     <div class="row"><button id="wzStart" class="primary">Start new session</button><span class="msg">Clears the food list</span></div>
+    <div class="row"><button id="wzWelcome">New participant on this phone</button><span class="msg">Shows the notice and code screen again</span></div>
 
     <h3>Next scan result</h3>
     <div class="row"><select id="wzNext"></select></div>
@@ -284,6 +295,9 @@ input[type=date], input[type=text], textarea {
       <button id="wzAddNote">Add note</button>
     </div>
 
+    <h3>Upload to Google Sheet</h3>
+    <div class="row"><span class="msg" id="wzUpload"></span><button id="wzFlush">Send now</button></div>
+
     <h3>Data</h3>
     <div class="row">
       <button id="wzExport" class="primary">Save log as CSV</button>
@@ -303,23 +317,78 @@ input[type=date], input[type=text], textarea {
 
 <script>
 /* =========================================================
+   0. STUDY SETTINGS. Fill these in before the study.
+   LOG_ENDPOINT: the Web app URL from the Google Apps Script
+   (it ends with /exec). Leave "" to keep data on the phone only.
+   ========================================================= */
+const LOG_ENDPOINT = "";
+const RESEARCHER_CONTACT = "[Your full name], [your ANU student email]";
+const WITHDRAW_DEADLINE = "5 November 2026, 23:59 AEDT";
+
+/* Counterbalancing plan: participant code -> product set used with the app, and order */
+const PLAN = {
+  P1: { appSet: "B", order: "manual-first" },
+  P2: { appSet: "A", order: "app-first" },
+  P3: { appSet: "A", order: "manual-first" },
+  P4: { appSet: "B", order: "app-first" },
+  P5: { appSet: "B", order: "manual-first" }
+};
+
+/* Data notice. English and Chinese; other languages show the English text. */
+const NOTICE = {
+  en: {
+    welcomeTitle: "Before you start",
+    sections: [
+      ["About this app", "This app is a prototype for a COMP6390 study at the Australian National University. It helps you read date labels on packaged food."],
+      ["What is recorded", "Your participant code, and what you do in the app with the time it happens, such as scans, changes you make, the language you choose and your decisions. The food names and dates you enter are also recorded."],
+      ["What is not recorded", "Photos stay on this phone and are never uploaded. The app does not ask for your name."],
+      ["Where the records go", "The records are sent to the researcher's private Google Sheet and are used only for this course project. They may be included as raw data in the project's private GitLab repository, which only the researcher and the course staff can access."],
+      ["Your choice", "Taking part is voluntary and you can stop at any time without giving a reason. If you withdraw before {deadline}, your records will be deleted."],
+      ["Contact", "{contact}"]
+    ],
+    codeLabel: "Participant code",
+    codeHint: "Use the same code as in the questionnaire, for example P1.",
+    agree: "I have read this notice and I agree that my use of this app is recorded for the study.",
+    start: "Start",
+    codeError: "Enter your participant code (for example P1) and tick the box to continue.",
+    footNote: "Your actions in this app are recorded for the study. Photos stay on this phone."
+  },
+  zh: {
+    welcomeTitle: "开始之前",
+    sections: [
+      ["关于本应用", "本应用是澳大利亚国立大学 COMP6390 课程研究使用的原型，用于帮助你读懂包装食品上的日期标签。"],
+      ["记录哪些信息", "你的参与者编号，以及你在应用中的操作和发生时间，例如扫描、修改、选择的语言和你做出的决定。你输入的食物名称和日期也会被记录。"],
+      ["不记录哪些信息", "照片只保存在这部手机上，不会上传。应用不会询问你的姓名。"],
+      ["信息去向", "记录会发送到研究者的私人 Google 表格，仅用于本课程项目，并可能作为原始数据放入项目的私有 GitLab 仓库，只有研究者和课程工作人员可以查看。"],
+      ["自愿参与", "参与完全自愿，你可以随时停止，无需说明理由。如果在 {deadline} 之前退出，你的记录将被删除。"],
+      ["联系方式", "{contact}"]
+    ],
+    codeLabel: "参与者编号",
+    codeHint: "请填写与问卷中相同的编号，例如 P1。",
+    agree: "我已阅读以上说明，并同意在研究中记录我对本应用的使用情况。",
+    start: "开始",
+    codeError: "请填写参与者编号（例如 P1）并勾选同意后继续。",
+    footNote: "你在本应用中的操作会被记录用于研究。照片只保存在这部手机上。"
+  }
+};
+function nt() { return NOTICE[state.lang] || NOTICE.en; }
+
+/* =========================================================
    1. EDIT THESE PRODUCTS TO MATCH THE REAL PACKAGES YOU BUY.
    date: "YYYY-MM-DD" (the date printed on the package)
          or "+N" / "-N" = N days from the real today (for quick setup).
    type: "useBy" or "bestBefore"
    ========================================================= */
 const PRODUCT_SETS = {
+  // Two products per set, scanned in sticker order (1 then 2).
+  // Set A starts with the use-by item, set B starts with the best-before item.
   A: [
-    { id: "A1", name: "Full cream milk 2L",     date: "+3",  type: "useBy" },
-    { id: "A2", name: "Sliced ham 250g",        date: "+5",  type: "useBy" },
-    { id: "A3", name: "Water crackers 125g",    date: "-4",  type: "bestBefore" },
-    { id: "A4", name: "Pasta sauce 500g",       date: "+60", type: "bestBefore" }
+    { id: "A1", name: "Full cream milk 2L",      date: "+2",  type: "useBy" },
+    { id: "A2", name: "Water crackers 125g",     date: "-2",  type: "bestBefore" }
   ],
   B: [
-    { id: "B1", name: "Greek yoghurt 1kg",      date: "+3",  type: "useBy" },
-    { id: "B2", name: "Fresh chicken thigh 500g", date: "+2", type: "useBy" },
-    { id: "B3", name: "Chocolate biscuits 200g", date: "-4",  type: "bestBefore" },
-    { id: "B4", name: "Breakfast cereal 500g",  date: "+90", type: "bestBefore" }
+    { id: "B1", name: "Chocolate biscuits 200g", date: "-2",  type: "bestBefore" },
+    { id: "B2", name: "Sliced ham 250g",         date: "+2",  type: "useBy" }
   ]
 };
 
@@ -566,9 +635,12 @@ const LOG_KEY = "fdh_log_v1";
 let state = {
   lang: "en", participant: "", appSet: "A", order: "manual-first",
   items: [], offsetDays: 0, queueIndex: 0, nextOverride: "auto",
-  misreadNext: false, failNext: false
+  misreadNext: false, failNext: false,
+  consented: false, sessionId: ""
 };
 let logRows = [];
+const QUEUE_KEY = "fdh_upload_queue_v1";
+let uploadQueue = [];
 let pending = null;      // result waiting for confirmation
 let currentDetail = null;
 
@@ -578,18 +650,23 @@ function load() {
     if (s) state = Object.assign(state, JSON.parse(s));
     const l = localStorage.getItem(LOG_KEY);
     if (l) logRows = JSON.parse(l);
+    const q = localStorage.getItem(QUEUE_KEY);
+    if (q) uploadQueue = JSON.parse(q);
   } catch (e) { /* storage unavailable: keep in memory */ }
 }
 function save() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
     localStorage.setItem(LOG_KEY, JSON.stringify(logRows));
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(uploadQueue));
   } catch (e) { /* ignore */ }
 }
 
 /* ---------------- Logging ---------------- */
 function log(event, detail) {
   const row = {
+    row_id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    session_id: state.sessionId || "",
     timestamp: new Date().toISOString(),
     participant: state.participant || "",
     app_set: state.appSet,
@@ -600,11 +677,94 @@ function log(event, detail) {
     detail: detail || ""
   };
   logRows.push(row);
+  if (state.consented) { uploadQueue.push(row); scheduleFlush(); }
   save();
   renderWizardLog();
+  renderUploadStatus();
+}
+
+/* Upload: rows wait in a queue on the phone until the Google Sheet accepts them */
+let flushTimer = null, flushing = false;
+function scheduleFlush(delay) {
+  if (!LOG_ENDPOINT) return;
+  clearTimeout(flushTimer);
+  flushTimer = setTimeout(flush, delay === undefined ? 1500 : delay);
+}
+async function flush() {
+  if (!LOG_ENDPOINT || flushing || !uploadQueue.length) { renderUploadStatus(); return; }
+  flushing = true;
+  const batch = uploadQueue.slice(0, 50);
+  try {
+    await fetch(LOG_ENDPOINT, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ rows: batch })
+    });
+    const sent = new Set(batch.map(r => r.row_id));
+    uploadQueue = uploadQueue.filter(r => !sent.has(r.row_id));
+    save();
+    flushing = false;
+    if (uploadQueue.length) scheduleFlush(300);
+  } catch (e) {
+    flushing = false;
+    scheduleFlush(10000);   // offline or blocked: try again later
+  }
+  renderUploadStatus();
+}
+function renderUploadStatus() {
+  const el = document.getElementById("wzUpload");
+  if (!el) return;
+  if (!LOG_ENDPOINT) el.textContent = "Not connected: LOG_ENDPOINT is empty, data stays on this phone.";
+  else if (!state.consented) el.textContent = "Waiting for the participant to agree to the notice.";
+  else if (uploadQueue.length) el.textContent = uploadQueue.length + " records waiting to upload.";
+  else el.textContent = "All records uploaded.";
+}
+window.addEventListener("online", () => scheduleFlush(0));
+window.addEventListener("pagehide", () => {
+  if (!LOG_ENDPOINT || !uploadQueue.length || !navigator.sendBeacon) return;
+  try { navigator.sendBeacon(LOG_ENDPOINT, new Blob([JSON.stringify({ rows: uploadQueue.slice(0, 50) })], { type: "text/plain" })); } catch (e) { }
+});
+
+/* Welcome screen: data notice, participant code and agreement */
+function newSessionId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function renderWelcome(keep) {
+  const N = nt();
+  const code = keep ? keep.code : "", agreed = keep ? keep.agreed : false;
+  const fill = txt => escapeHTML(txt).replace("{deadline}", escapeHTML(WITHDRAW_DEADLINE)).replace("{contact}", escapeHTML(RESEARCHER_CONTACT));
+  document.getElementById("welcomeCard").innerHTML =
+    '<div class="formtitle">' + N.welcomeTitle + '</div>' +
+    '<div class="notice">' + N.sections.map(sec => '<h3>' + sec[0] + '</h3><p>' + fill(sec[1]) + '</p>').join("") + '</div>' +
+    '<label class="field" for="wCode">' + N.codeLabel + '</label>' +
+    '<input type="text" id="wCode" autocomplete="off" autocapitalize="characters" placeholder="P1" value="' + escapeHTML(code) + '">' +
+    '<div class="hint">' + N.codeHint + '</div>' +
+    '<label class="agree"><input type="checkbox" id="wAgree"' + (agreed ? " checked" : "") + '><span>' + N.agree + '</span></label>' +
+    '<p class="status past hidden" id="wErr">' + N.codeError + '</p>' +
+    '<button class="btn" id="wStart" type="button">' + N.start + '</button>';
+  document.getElementById("wStart").onclick = startFromWelcome;
+}
+function welcomeValues() {
+  const c = document.getElementById("wCode"), a = document.getElementById("wAgree");
+  return { code: c ? c.value : "", agreed: a ? a.checked : false };
+}
+function startFromWelcome() {
+  const v = welcomeValues();
+  const code = v.code.trim().toUpperCase().replace(/\s+/g, "");
+  if (!/^P\d{1,2}$/.test(code) || !v.agreed) { document.getElementById("wErr").classList.remove("hidden"); return; }
+  const plan = PLAN[code] || { appSet: "A", order: "manual-first" };
+  Object.assign(state, {
+    participant: code, appSet: plan.appSet, order: plan.order, consented: true, sessionId: newSessionId(),
+    items: [], offsetDays: 0, queueIndex: 0, nextOverride: "auto", misreadNext: false, failNext: false
+  });
+  save();
+  log("consent_given", "notice_language=" + state.lang);
+  log("session_start", "set=" + state.appSet + " order=" + state.order + " source=participant");
+  renderWizardSelects(); renderList(); show("screenHome");
+}
+function showWelcome() {
+  renderWelcome(); show("screenWelcome");
 }
 function csvText() {
-  const cols = ["timestamp", "participant", "app_set", "order", "language", "simulated_today", "event", "detail"];
+  const cols = ["row_id", "session_id", "timestamp", "participant", "app_set", "order", "language", "simulated_today", "event", "detail"];
   const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
   return [cols.join(",")].concat(logRows.map(r => cols.map(c => esc(r[c])).join(","))).join("\n");
 }
@@ -686,7 +846,7 @@ function applyLang() {
 }
 
 /* ---------------- Screens ---------------- */
-const SCREENS = ["screenHome", "screenScan", "screenResult", "screenForm", "screenDetail"];
+const SCREENS = ["screenWelcome", "screenHome", "screenScan", "screenResult", "screenForm", "screenDetail"];
 function show(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle("hidden", s !== id));
   document.getElementById("dock").classList.toggle("hidden", id !== "screenHome");
@@ -707,6 +867,8 @@ function thumbHTML(photo) {
 }
 
 function renderList() {
+  const fn = document.getElementById("footNote");
+  if (fn) fn.textContent = state.consented && LOG_ENDPOINT ? nt().footNote : "";
   const host = document.getElementById("list");
   if (!state.items.length) {
     host.innerHTML = '<div class="card empty">' + t().empty + '<div class="hint">' + t().scanHint + '</div></div>';
@@ -1023,12 +1185,16 @@ function openWizard() {
 /* ---------------- Wire up ---------------- */
 function init() {
   load();
-  applyLang(); renderList(); show("screenHome");
+  applyLang(); renderList();
+  if (state.consented && state.participant) show("screenHome"); else showWelcome();
+  renderUploadStatus();
+  if (uploadQueue.length) scheduleFlush(0);
 
   document.getElementById("langSelect").addEventListener("change", e => {
     const from = state.lang; state.lang = e.target.value; save();
     log("language_change", from + " -> " + state.lang);
     applyLang(); renderList();
+    if (visible("screenWelcome")) renderWelcome(welcomeValues());
     if (visible("screenResult") && pending) renderResult();
     if (visible("screenForm") && form) { syncForm(); renderForm(); }
     if (visible("screenDetail")) renderDetail();
@@ -1074,9 +1240,17 @@ function init() {
     state.order = document.getElementById("wzOrder").value;
     state.items = []; state.offsetDays = 0; state.queueIndex = 0; state.nextOverride = "auto";
     state.misreadNext = false; state.failNext = false; state.lang = "en";
-    save(); applyLang(); renderList(); renderWizardSelects();
-    log("session_start", "set=" + state.appSet + " order=" + state.order);
+    state.consented = true; state.sessionId = newSessionId();
+    save(); applyLang(); renderList(); renderWizardSelects(); show("screenHome");
+    log("session_start", "set=" + state.appSet + " order=" + state.order + " source=facilitator");
   };
+  document.getElementById("wzWelcome").onclick = () => {
+    Object.assign(state, { participant: "", consented: false, sessionId: "", items: [], offsetDays: 0, queueIndex: 0, nextOverride: "auto", misreadNext: false, failNext: false });
+    save(); renderWizardSelects(); renderUploadStatus();
+    document.getElementById("wizard").classList.add("hidden");
+    showWelcome();
+  };
+  document.getElementById("wzFlush").onclick = () => { renderUploadStatus(); scheduleFlush(0); };
   document.getElementById("wzNext").onchange = e => { state.nextOverride = e.target.value; save(); };
   document.getElementById("wzMisread").onchange = e => { state.misreadNext = e.target.checked; save(); };
   document.getElementById("wzFail").onchange = e => { state.failNext = e.target.checked; save(); };
