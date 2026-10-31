@@ -1,0 +1,914 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Food Date Helper</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one calm column like a phone utility app; blue is the only accent,
+   red and amber are kept only to tell use-by and best-before apart. */
+:root {
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --text: #0f1c2e;
+  --muted: #5d6b80;
+  --line: #e1e7f0;
+  --accent: #2560e8;
+  --accent-soft: #e8effd;
+  --on-accent: #ffffff;
+  --useby: #c2362b;
+  --useby-soft: #fdeeec;
+  --best: #a86411;
+  --best-soft: #fcf3e4;
+  --scrim: rgba(15, 28, 46, .45);
+  --shadow: 0 8px 24px rgba(15, 28, 46, .10);
+  --font: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans SC", "Noto Sans Devanagari", "Noto Sans Bengali", "Noto Sans KR", "Noto Sans JP", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c131e; --surface: #141e2d; --text: #e6edf7; --muted: #95a3b8; --line: #243248;
+    --accent: #6e9bff; --accent-soft: #1a2a47; --on-accent: #0c131e;
+    --useby: #ff8a7d; --useby-soft: #3a1d1b; --best: #f2b866; --best-soft: #352713;
+    --scrim: rgba(0, 0, 0, .6); --shadow: 0 8px 24px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c131e; --surface: #141e2d; --text: #e6edf7; --muted: #95a3b8; --line: #243248;
+  --accent: #6e9bff; --accent-soft: #1a2a47; --on-accent: #0c131e;
+  --useby: #ff8a7d; --useby-soft: #3a1d1b; --best: #f2b866; --best-soft: #352713;
+  --scrim: rgba(0, 0, 0, .6); --shadow: 0 8px 24px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font);
+  font-size: 17px; line-height: 1.5; -webkit-text-size-adjust: 100%;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--bg);
+}
+button, input, select { font-family: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { max-width: 520px; margin: 0 auto; padding-bottom: 120px; }
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-block: 14px 10px;
+}
+.brand { font-weight: 700; font-size: 19px; letter-spacing: -.01em; user-select: none; -webkit-user-select: none; cursor: default; min-width: 0; }
+.lang { display: flex; align-items: center; gap: 6px; background: var(--accent-soft); border-radius: 999px; padding: 6px 12px; flex: none; }
+.lang svg { width: 16px; height: 16px; stroke: var(--accent); }
+.lang select { border: none; background: transparent; color: var(--accent); font-size: 15px; font-weight: 600; padding: 0; }
+h2 { font-size: 15px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 20px 0 10px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.empty { color: var(--muted); text-align: center; padding: 32px 16px; }
+.hint { color: var(--muted); font-size: 14px; margin-top: 6px; }
+.btn {
+  display: block; width: 100%; border: none; border-radius: 12px; padding: 15px;
+  font-size: 17px; font-weight: 600; cursor: pointer; background: var(--accent); color: var(--on-accent);
+}
+.btn.secondary { background: transparent; color: var(--accent); border: 1.5px solid var(--line); }
+.btn.quiet { background: var(--accent-soft); color: var(--accent); }
+.btn-row { display: flex; gap: 10px; }
+.btn-row .btn { flex: 1; }
+.dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: linear-gradient(to top, var(--bg) 70%, transparent);
+  padding-top: 18px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.dock .btn { max-width: 520px; margin: 0 auto; padding: 18px; font-size: 18px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: var(--shadow); }
+.dock svg { width: 22px; height: 22px; stroke: currentColor; }
+.item { display: flex; align-items: center; gap: 14px; cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; }
+.item .meta { flex: 1; min-width: 0; }
+.item .name { font-weight: 600; overflow-wrap: anywhere; }
+.item .sub { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.tag { flex: none; font-size: 12px; font-weight: 700; letter-spacing: .05em; border-radius: 6px; padding: 3px 7px; }
+.tag.useBy { color: var(--useby); background: var(--useby-soft); }
+.tag.bestBefore { color: var(--best); background: var(--best-soft); }
+.badge { display: inline-flex; align-items: baseline; gap: 8px; border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 14px; letter-spacing: .05em; }
+.badge small { font-weight: 500; letter-spacing: 0; font-size: 14px; }
+.badge.useBy { background: var(--useby-soft); color: var(--useby); }
+.badge.bestBefore { background: var(--best-soft); color: var(--best); }
+.bigdate { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin: 14px 0 2px; font-variant-numeric: tabular-nums; }
+.status { font-weight: 600; font-size: 15px; }
+.status.soon { color: var(--best); }
+.status.past { color: var(--useby); }
+.status.fine { color: var(--accent); }
+.explain { border-radius: 10px; padding: 12px 14px; margin-top: 14px; font-size: 16px; border-left: 3px solid; }
+.explain.useBy { background: var(--useby-soft); border-color: var(--useby); }
+.explain.bestBefore { background: var(--best-soft); border-color: var(--best); }
+.note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+.photo { width: 100%; max-width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; display: block; margin-bottom: 12px; }
+.scanbox { position: relative; overflow: hidden; border-radius: 10px; }
+.scanbox .photo { margin-bottom: 0; }
+.scanline { position: absolute; left: 0; right: 0; height: 3px; background: var(--accent); box-shadow: 0 0 12px var(--accent); animation: sweep 1.1s ease-in-out infinite alternate; }
+@keyframes sweep { from { top: 4%; } to { top: 94%; } }
+@media (prefers-reduced-motion: reduce) { .scanline { animation: none; top: 50%; } .banner { animation: none; } }
+.reading { text-align: center; font-weight: 600; margin-top: 12px; color: var(--accent); }
+.q { font-weight: 600; margin-top: 18px; }
+label.field { display: block; margin-top: 14px; font-weight: 600; font-size: 15px; }
+input[type=date], input[type=text], textarea {
+  width: 100%; font-size: 17px; padding: 12px; border-radius: 10px;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--text); margin-top: 6px;
+}
+.radio-row { display: flex; gap: 10px; margin-top: 6px; }
+.radio-row label { flex: 1; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px; text-align: center; font-weight: 600; }
+.radio-row input { margin-right: 6px; accent-color: var(--accent); }
+.hidden { display: none !important; }
+.banner {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 20;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  width: calc(100% - 2 * max(12px, env(safe-area-inset-left, 0px))); max-width: 500px;
+  background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--best);
+  border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); animation: drop .3s ease-out;
+}
+.banner.useBy { border-top-color: var(--useby); }
+@keyframes drop { from { transform: translate(-50%, -120%); } to { transform: translate(-50%, 0); } }
+.banner .title { font-weight: 700; color: var(--accent); font-size: 14px; text-transform: uppercase; letter-spacing: .06em; }
+.back { background: none; border: none; color: var(--accent); font-size: 16px; font-weight: 600; padding: 6px 0; cursor: pointer; margin-bottom: 6px; }
+
+/* Facilitator panel */
+.wizard { position: fixed; inset: 0; z-index: 30; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; }
+.wizard .sheet {
+  width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto; background: var(--surface); color: var(--text);
+  border-radius: 18px 18px 0 0; font-size: 15px;
+  padding-block: 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wizard h3 { margin: 16px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.wizard .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+.wizard button { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.wizard button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.wizard button.danger { color: var(--useby); }
+.wizard input[type=text], .wizard select { font-size: 15px; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); max-width: 100%; }
+.wizard select#wzNext, .wizard select#wzMarkItem, .wizard select#wzRemindItem { flex: 1; min-width: 0; }
+.wizard .log { font-family: var(--mono); font-size: 12px; max-height: 140px; overflow: auto; background: var(--bg); padding: 8px; border-radius: 8px; white-space: pre-wrap; }
+.wizard textarea { font-family: var(--mono); font-size: 11px; height: 120px; }
+.wizard .msg { color: var(--muted); font-size: 13px; }
+.simday { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand" id="brand">Food Date Helper</div>
+    <label class="lang">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg>
+      <select id="langSelect" aria-label="Language">
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+        <option value="ne">नेपाली</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="bn">বাংলা</option>
+        <option value="ko">한국어</option>
+        <option value="ja">日本語</option>
+      </select>
+    </label>
+  </header>
+
+  <section id="screenHome">
+    <h2 data-t="myFood">My food</h2>
+    <div id="list" class="stack"></div>
+  </section>
+
+  <section id="screenScan" class="hidden">
+    <div class="card">
+      <div class="scanbox">
+        <img id="scanPhoto" class="photo" alt="">
+        <div class="scanline"></div>
+      </div>
+      <div class="reading" data-t="reading">Reading label…</div>
+    </div>
+  </section>
+
+  <section id="screenResult" class="hidden">
+    <button class="back" id="resultBack">‹ <span data-t="cancel">Cancel</span></button>
+    <div class="card" id="resultCard"></div>
+  </section>
+
+  <section id="screenDetail" class="hidden">
+    <button class="back" id="detailBack">‹ <span data-t="myFood">My food</span></button>
+    <div class="card" id="detailCard"></div>
+  </section>
+</div>
+
+<div class="dock" id="dock">
+  <button class="btn" id="scanBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></svg>
+    <span data-t="scan">Scan date label</span>
+  </button>
+</div>
+<input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+
+<div id="bannerHost"></div>
+
+<div class="wizard hidden" id="wizard">
+  <div class="sheet">
+    <div class="row" style="justify-content:space-between">
+      <strong>Facilitator panel</strong>
+      <button id="wzClose" class="primary">Close</button>
+    </div>
+    <div class="msg">Hidden from the participant. Open it by tapping the app title three times.</div>
+
+    <h3>Session</h3>
+    <div class="row">
+      <label>Participant <input type="text" id="wzParticipant" size="5" placeholder="P1"></label>
+      <label>App set <select id="wzSet"><option value="A">A</option><option value="B">B</option></select></label>
+      <label>Order <select id="wzOrder"><option value="manual-first">manual first</option><option value="app-first">app first</option></select></label>
+    </div>
+    <div class="row"><button id="wzStart" class="primary">Start new session</button><span class="msg">Clears the food list</span></div>
+
+    <h3>Next scan result</h3>
+    <div class="row"><select id="wzNext"></select></div>
+    <div class="row"><label><input type="checkbox" id="wzMisread"> Misread next scan (wrong date)</label></div>
+    <div class="row"><label><input type="checkbox" id="wzFail"> Fail next scan (manual entry)</label></div>
+
+    <h3>Simulated today: <span class="simday" id="wzToday"></span></h3>
+    <div class="row">
+      <button data-days="-1">−1 day</button>
+      <button data-days="1">+1 day</button>
+      <button data-days="3">+3 days</button>
+      <button data-days="7">+7 days</button>
+      <button id="wzResetDay">Real today</button>
+    </div>
+
+    <h3>Reminder</h3>
+    <div class="row"><select id="wzRemindItem"></select><button id="wzRemind" class="primary">Send in 2 s</button></div>
+
+    <h3>Timing marks</h3>
+    <div class="row">
+      <select id="wzCond"><option value="manual">manual</option><option value="app">app</option></select>
+      <select id="wzMarkItem"></select>
+    </div>
+    <div class="row">
+      <button id="wzMarkStart">Task start</button>
+      <button id="wzMarkEnd">Task end</button>
+    </div>
+    <div class="row">
+      <input type="text" id="wzNote" placeholder="Observation note" style="flex:1;min-width:0">
+      <button id="wzAddNote">Add note</button>
+    </div>
+
+    <h3>Data</h3>
+    <div class="row">
+      <button id="wzExport" class="primary">Save log as CSV</button>
+      <button id="wzCopy">Copy log</button>
+      <button id="wzClearLog" class="danger">Clear all logs</button>
+    </div>
+    <div class="row hidden" id="wzClearConfirm">
+      <span class="msg">Delete every logged event on this phone?</span>
+      <button id="wzClearYes" class="danger">Delete</button>
+      <button id="wzClearNo">Keep</button>
+    </div>
+    <div class="msg" id="wzDataMsg"></div>
+    <textarea id="wzCsv" class="hidden" readonly aria-label="Log as CSV"></textarea>
+    <div class="log" id="wzLog"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   1. EDIT THESE PRODUCTS TO MATCH THE REAL PACKAGES YOU BUY.
+   date: "YYYY-MM-DD" (the date printed on the package)
+         or "+N" / "-N" = N days from the real today (for quick setup).
+   type: "useBy" or "bestBefore"
+   ========================================================= */
+const PRODUCT_SETS = {
+  A: [
+    { id: "A1", name: "Full cream milk 2L",     date: "+3",  type: "useBy" },
+    { id: "A2", name: "Sliced ham 250g",        date: "+5",  type: "useBy" },
+    { id: "A3", name: "Water crackers 125g",    date: "-4",  type: "bestBefore" },
+    { id: "A4", name: "Pasta sauce 500g",       date: "+60", type: "bestBefore" }
+  ],
+  B: [
+    { id: "B1", name: "Greek yoghurt 1kg",      date: "+3",  type: "useBy" },
+    { id: "B2", name: "Fresh chicken thigh 500g", date: "+2", type: "useBy" },
+    { id: "B3", name: "Chocolate biscuits 200g", date: "-4",  type: "bestBefore" },
+    { id: "B4", name: "Breakfast cereal 500g",  date: "+90", type: "bestBefore" }
+  ]
+};
+
+/* =========================================================
+   2. TRANSLATIONS. Ask a native speaker to check ne / vi / bn / ko / ja.
+   Languages: Chinese, Nepali, Vietnamese and Bengali follow the top
+   non-English-speaking source countries of international students in
+   Australia (Department of Education data, Feb 2026). Korean and
+   Japanese were added by the designer.
+   "Use by" and "Best before" stay in English because that is
+   the text printed on Australian packages.
+   ========================================================= */
+const T = {
+  en: {
+    locale: "en-AU",
+    title: "Food Date Helper", myFood: "My food",
+    empty: "No food yet. Scan a package to add it.",
+    scan: "Scan date label", scanHint: "Point the camera at the date printed on the package.",
+    reading: "Reading label…", readFail: "Could not read the date. Please enter it.",
+    checkTitle: "Please check", isCorrect: "Is this the same as the package?",
+    confirm: "Yes, add to my food", edit: "Edit", date: "Date", type: "Date type",
+    useByShort: "Safety date", bestBeforeShort: "Quality date",
+    useByExplain: "This is a safety date. Eat or freeze it before this date. Do not eat it after this date, even if it looks and smells fine.",
+    bestBeforeExplain: "This is a quality date. After this date the food is usually still safe if the package is unopened and stored correctly, but taste or texture may be lower. Check how it looks and smells.",
+    daysLeft: n => n === 1 ? "1 day left" : n + " days left",
+    today: "Date is today", past: n => n === 1 ? "1 day past the date" : n + " days past the date",
+    save: "Save", cancel: "Cancel", reminderTitle: "Reminder",
+    reminderUseBy: s => s + ": the use-by date is close. Eat or freeze it soon.",
+    reminderUseByPast: s => s + ": the use-by date has passed. Do not eat it.",
+    reminderBest: s => s + ": the best-before date is close. If stored well, it is usually still safe after this date.",
+    reminderBestPast: s => s + ": the best-before date has passed. Check how it looks and smells before eating.",
+    open: "View", dismiss: "OK", eaten: "Eaten", binned: "Thrown away",
+    checkLabel: "If you are unsure, check the label on the package.",
+    expiredUseBy: "Past the use-by date. Do not eat.",
+    expiredBest: "Past the best-before date. Check look and smell before eating."
+  },
+  zh: {
+    locale: "zh-CN",
+    title: "食品日期助手", myFood: "我的食物",
+    empty: "还没有食物。扫描包装即可添加。",
+    scan: "扫描日期标签", scanHint: "将摄像头对准包装上印的日期。",
+    reading: "正在识别标签…", readFail: "无法识别日期，请手动输入。",
+    checkTitle: "请核对", isCorrect: "与包装上的信息一致吗？",
+    confirm: "一致，加入我的食物", edit: "修改", date: "日期", type: "日期类型",
+    useByShort: "安全期限", bestBeforeShort: "品质期限",
+    useByExplain: "这是安全期限。请在此日期前食用或冷冻。过了这个日期就不要再吃，即使看起来、闻起来都正常。",
+    bestBeforeExplain: "这是品质期限。过了这个日期，如果包装未开封且储存得当，通常仍可安全食用，但口味或口感可能下降。请检查外观和气味。",
+    daysLeft: n => "还剩 " + n + " 天",
+    today: "今天到期", past: n => "已超过日期 " + n + " 天",
+    save: "保存", cancel: "取消", reminderTitle: "提醒",
+    reminderUseBy: s => s + "：快到 use-by 日期了，请尽快食用或冷冻。",
+    reminderUseByPast: s => s + "：已过 use-by 日期，请不要食用。",
+    reminderBest: s => s + "：快到 best-before 日期了。储存得当的话，过了日期通常仍可食用。",
+    reminderBestPast: s => s + "：已过 best-before 日期。食用前请检查外观和气味。",
+    open: "查看", dismiss: "知道了", eaten: "已吃完", binned: "已丢弃",
+    checkLabel: "如有疑问，请以包装上的标签为准。",
+    expiredUseBy: "已过 use-by 日期，请不要食用。",
+    expiredBest: "已过 best-before 日期。食用前请检查外观和气味。"
+  },
+  vi: {
+    locale: "vi-VN",
+    title: "Trợ lý hạn sử dụng", myFood: "Thực phẩm của tôi",
+    empty: "Chưa có thực phẩm. Hãy quét bao bì để thêm.",
+    scan: "Quét nhãn ngày", scanHint: "Hướng camera vào ngày in trên bao bì.",
+    reading: "Đang đọc nhãn…", readFail: "Không đọc được ngày. Vui lòng nhập.",
+    checkTitle: "Vui lòng kiểm tra", isCorrect: "Thông tin này có giống trên bao bì không?",
+    confirm: "Đúng, thêm vào thực phẩm của tôi", edit: "Sửa", date: "Ngày", type: "Loại ngày",
+    useByShort: "Hạn an toàn", bestBeforeShort: "Hạn chất lượng",
+    useByExplain: "Đây là hạn an toàn. Hãy ăn hoặc đông lạnh trước ngày này. Không ăn sau ngày này, kể cả khi trông và ngửi vẫn bình thường.",
+    bestBeforeExplain: "Đây là hạn chất lượng. Sau ngày này, thực phẩm thường vẫn an toàn nếu chưa mở bao bì và được bảo quản đúng cách, nhưng hương vị có thể giảm. Hãy kiểm tra hình thức và mùi.",
+    daysLeft: n => "Còn " + n + " ngày",
+    today: "Hết hạn hôm nay", past: n => "Đã quá hạn " + n + " ngày",
+    save: "Lưu", cancel: "Hủy", reminderTitle: "Nhắc nhở",
+    reminderUseBy: s => s + ": sắp đến hạn use-by. Hãy ăn hoặc đông lạnh sớm.",
+    reminderUseByPast: s => s + ": đã quá hạn use-by. Không được ăn.",
+    reminderBest: s => s + ": sắp đến hạn best-before. Nếu bảo quản tốt, sau ngày này thường vẫn ăn được.",
+    reminderBestPast: s => s + ": đã quá hạn best-before. Kiểm tra hình thức và mùi trước khi ăn.",
+    open: "Xem", dismiss: "OK", eaten: "Đã ăn", binned: "Đã bỏ đi",
+    checkLabel: "Nếu không chắc chắn, hãy kiểm tra nhãn trên bao bì.",
+    expiredUseBy: "Đã quá hạn use-by. Không được ăn.",
+    expiredBest: "Đã quá hạn best-before. Kiểm tra hình thức và mùi trước khi ăn."
+  },
+  ne: {
+    locale: "ne-NP",
+    title: "खाद्य मिति सहायक", myFood: "मेरो खाना",
+    empty: "अहिलेसम्म खाना छैन। थप्न प्याकेट स्क्यान गर्नुहोस्।",
+    scan: "मिति लेबल स्क्यान गर्नुहोस्", scanHint: "क्यामेरालाई प्याकेटमा छापिएको मितितर्फ राख्नुहोस्।",
+    reading: "लेबल पढ्दै…", readFail: "मिति पढ्न सकिएन। कृपया लेख्नुहोस्।",
+    checkTitle: "कृपया जाँच गर्नुहोस्", isCorrect: "के यो प्याकेटमा भएको जानकारीसँग मिल्छ?",
+    confirm: "हो, मेरो खानामा थप्नुहोस्", edit: "सच्याउनुहोस्", date: "मिति", type: "मितिको प्रकार",
+    useByShort: "सुरक्षा मिति", bestBeforeShort: "गुणस्तर मिति",
+    useByExplain: "यो सुरक्षा मिति हो। यो मितिभन्दा पहिले खानुहोस् वा फ्रिज गर्नुहोस्। यो मितिपछि नखानुहोस्, हेर्दा र सुँघ्दा ठीक लागे पनि।",
+    bestBeforeExplain: "यो गुणस्तर मिति हो। यो मितिपछि पनि, प्याकेट नखोलिएको र राम्रोसँग राखिएको भए खाना प्रायः सुरक्षित हुन्छ, तर स्वाद कम हुन सक्छ। रूप र गन्ध जाँच गर्नुहोस्।",
+    daysLeft: n => n + " दिन बाँकी",
+    today: "आज अन्तिम मिति", past: n => "मिति " + n + " दिन नाघ्यो",
+    save: "सुरक्षित गर्नुहोस्", cancel: "रद्द गर्नुहोस्", reminderTitle: "सम्झना",
+    reminderUseBy: s => s + ": use-by मिति नजिक छ। छिट्टै खानुहोस् वा फ्रिज गर्नुहोस्।",
+    reminderUseByPast: s => s + ": use-by मिति नाघिसक्यो। नखानुहोस्।",
+    reminderBest: s => s + ": best-before मिति नजिक छ। राम्रोसँग राखिएको भए मितिपछि पनि प्रायः सुरक्षित हुन्छ।",
+    reminderBestPast: s => s + ": best-before मिति नाघिसक्यो। खानुअघि रूप र गन्ध जाँच गर्नुहोस्।",
+    open: "हेर्नुहोस्", dismiss: "ठीक छ", eaten: "खाइसकियो", binned: "फालियो",
+    checkLabel: "शंका भए प्याकेटको लेबल हेर्नुहोस्।",
+    expiredUseBy: "use-by मिति नाघिसक्यो। नखानुहोस्।",
+    expiredBest: "best-before मिति नाघिसक्यो। खानुअघि रूप र गन्ध जाँच गर्नुहोस्।"
+  },
+  bn: {
+    locale: "bn-BD",
+    title: "খাবারের তারিখ সহায়ক", myFood: "আমার খাবার",
+    empty: "এখনও কোনো খাবার নেই। যোগ করতে প্যাকেট স্ক্যান করুন।",
+    scan: "তারিখের লেবেল স্ক্যান করুন", scanHint: "প্যাকেটে ছাপা তারিখের দিকে ক্যামেরা ধরুন।",
+    reading: "লেবেল পড়া হচ্ছে…", readFail: "তারিখ পড়া যায়নি। অনুগ্রহ করে লিখুন।",
+    checkTitle: "অনুগ্রহ করে মিলিয়ে দেখুন", isCorrect: "এটি কি প্যাকেটের তথ্যের সাথে মিলছে?",
+    confirm: "হ্যাঁ, আমার খাবারে যোগ করুন", edit: "সম্পাদনা", date: "তারিখ", type: "তারিখের ধরন",
+    useByShort: "নিরাপত্তার তারিখ", bestBeforeShort: "মানের তারিখ",
+    useByExplain: "এটি নিরাপত্তার তারিখ। এই তারিখের আগে খান বা ফ্রিজারে রাখুন। এই তারিখের পরে খাবেন না, দেখতে ও গন্ধে ঠিক মনে হলেও।",
+    bestBeforeExplain: "এটি মানের তারিখ। এই তারিখের পরেও, প্যাকেট না খোলা থাকলে এবং ঠিকভাবে সংরক্ষণ করা হলে খাবার সাধারণত নিরাপদ থাকে, তবে স্বাদ কমে যেতে পারে। চেহারা ও গন্ধ পরীক্ষা করুন।",
+    daysLeft: n => n + " দিন বাকি",
+    today: "আজই শেষ তারিখ", past: n => "তারিখের " + n + " দিন পার হয়েছে",
+    save: "সংরক্ষণ", cancel: "বাতিল", reminderTitle: "রিমাইন্ডার",
+    reminderUseBy: s => s + ": use-by তারিখ কাছে। তাড়াতাড়ি খান বা ফ্রিজারে রাখুন।",
+    reminderUseByPast: s => s + ": use-by তারিখ পার হয়ে গেছে। খাবেন না।",
+    reminderBest: s => s + ": best-before তারিখ কাছে। ঠিকভাবে রাখা হলে তারিখের পরেও সাধারণত নিরাপদ।",
+    reminderBestPast: s => s + ": best-before তারিখ পার হয়ে গেছে। খাওয়ার আগে চেহারা ও গন্ধ পরীক্ষা করুন।",
+    open: "দেখুন", dismiss: "ঠিক আছে", eaten: "খেয়েছি", binned: "ফেলে দিয়েছি",
+    checkLabel: "নিশ্চিত না হলে প্যাকেটের লেবেল দেখুন।",
+    expiredUseBy: "use-by তারিখ পার হয়ে গেছে। খাবেন না।",
+    expiredBest: "best-before তারিখ পার হয়ে গেছে। খাওয়ার আগে চেহারা ও গন্ধ পরীক্ষা করুন।"
+  },
+  ko: {
+    locale: "ko-KR",
+    title: "식품 날짜 도우미", myFood: "내 식품",
+    empty: "아직 식품이 없습니다. 포장을 스캔해서 추가하세요.",
+    scan: "날짜 라벨 스캔", scanHint: "포장에 인쇄된 날짜에 카메라를 맞추세요.",
+    reading: "라벨을 읽는 중…", readFail: "날짜를 읽을 수 없습니다. 직접 입력해 주세요.",
+    checkTitle: "확인해 주세요", isCorrect: "포장에 적힌 정보와 같습니까?",
+    confirm: "네, 내 식품에 추가", edit: "수정", date: "날짜", type: "날짜 유형",
+    useByShort: "안전 기한", bestBeforeShort: "품질 기한",
+    useByExplain: "안전 기한입니다. 이 날짜 전에 먹거나 냉동하세요. 이 날짜가 지나면 겉보기와 냄새가 괜찮아도 먹지 마세요.",
+    bestBeforeExplain: "품질 기한입니다. 이 날짜가 지나도 포장을 열지 않고 올바르게 보관했다면 대체로 안전하지만, 맛이나 식감이 떨어질 수 있습니다. 모양과 냄새를 확인하세요.",
+    daysLeft: n => n + "일 남음",
+    today: "오늘까지", past: n => "날짜가 " + n + "일 지남",
+    save: "저장", cancel: "취소", reminderTitle: "알림",
+    reminderUseBy: s => s + ": use-by 날짜가 다가옵니다. 빨리 먹거나 냉동하세요.",
+    reminderUseByPast: s => s + ": use-by 날짜가 지났습니다. 먹지 마세요.",
+    reminderBest: s => s + ": best-before 날짜가 다가옵니다. 잘 보관했다면 날짜가 지나도 대체로 안전합니다.",
+    reminderBestPast: s => s + ": best-before 날짜가 지났습니다. 먹기 전에 모양과 냄새를 확인하세요.",
+    open: "보기", dismiss: "확인", eaten: "먹음", binned: "버림",
+    checkLabel: "확실하지 않으면 포장의 라벨을 확인하세요.",
+    expiredUseBy: "use-by 날짜가 지났습니다. 먹지 마세요.",
+    expiredBest: "best-before 날짜가 지났습니다. 먹기 전에 모양과 냄새를 확인하세요."
+  },
+  ja: {
+    locale: "ja-JP",
+    title: "食品日付アシスタント", myFood: "私の食品",
+    empty: "まだ食品がありません。パッケージをスキャンして追加してください。",
+    scan: "日付ラベルをスキャン", scanHint: "パッケージに印刷された日付にカメラを向けてください。",
+    reading: "ラベルを読み取り中…", readFail: "日付を読み取れませんでした。入力してください。",
+    checkTitle: "確認してください", isCorrect: "パッケージの表示と同じですか？",
+    confirm: "はい、私の食品に追加", edit: "修正", date: "日付", type: "日付の種類",
+    useByShort: "消費期限（安全）", bestBeforeShort: "賞味期限（品質）",
+    useByExplain: "これは消費期限（安全の期限）です。この日付までに食べるか冷凍してください。見た目やにおいに問題がなくても、この日付を過ぎたら食べないでください。",
+    bestBeforeExplain: "これは賞味期限（品質の期限）です。未開封で正しく保存していれば、この日付を過ぎても通常は安全に食べられますが、味や食感が落ちることがあります。見た目とにおいを確認してください。",
+    daysLeft: n => "あと" + n + "日",
+    today: "今日が期限", past: n => "期限を" + n + "日過ぎています",
+    save: "保存", cancel: "キャンセル", reminderTitle: "お知らせ",
+    reminderUseBy: s => s + "：use-by（消費期限）が近づいています。早めに食べるか冷凍してください。",
+    reminderUseByPast: s => s + "：use-by（消費期限）を過ぎました。食べないでください。",
+    reminderBest: s => s + "：best-before（賞味期限）が近づいています。正しく保存していれば、過ぎても通常は安全です。",
+    reminderBestPast: s => s + "：best-before（賞味期限）を過ぎました。食べる前に見た目とにおいを確認してください。",
+    open: "見る", dismiss: "OK", eaten: "食べた", binned: "捨てた",
+    checkLabel: "わからない場合は、パッケージのラベルを確認してください。",
+    expiredUseBy: "use-by（消費期限）を過ぎています。食べないでください。",
+    expiredBest: "best-before（賞味期限）を過ぎています。食べる前に見た目とにおいを確認してください。"
+  }
+};
+const TYPE_LABEL = { useBy: "USE BY", bestBefore: "BEST BEFORE" };
+
+/* ---------------- State and storage ---------------- */
+const STORE_KEY = "fdh_state_v1";
+const LOG_KEY = "fdh_log_v1";
+let state = {
+  lang: "en", participant: "", appSet: "A", order: "manual-first",
+  items: [], offsetDays: 0, queueIndex: 0, nextOverride: "auto",
+  misreadNext: false, failNext: false
+};
+let logRows = [];
+let pending = null;      // result waiting for confirmation
+let editing = false;
+let currentDetail = null;
+
+function load() {
+  try {
+    const s = localStorage.getItem(STORE_KEY);
+    if (s) state = Object.assign(state, JSON.parse(s));
+    const l = localStorage.getItem(LOG_KEY);
+    if (l) logRows = JSON.parse(l);
+  } catch (e) { /* storage unavailable: keep in memory */ }
+}
+function save() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    localStorage.setItem(LOG_KEY, JSON.stringify(logRows));
+  } catch (e) { /* ignore */ }
+}
+
+/* ---------------- Logging ---------------- */
+function log(event, detail) {
+  const row = {
+    timestamp: new Date().toISOString(),
+    participant: state.participant || "",
+    app_set: state.appSet,
+    order: state.order,
+    language: state.lang,
+    simulated_today: isoDate(simToday()),
+    event: event,
+    detail: detail || ""
+  };
+  logRows.push(row);
+  save();
+  renderWizardLog();
+}
+function csvText() {
+  const cols = ["timestamp", "participant", "app_set", "order", "language", "simulated_today", "event", "detail"];
+  const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
+  return [cols.join(",")].concat(logRows.map(r => cols.map(c => esc(r[c])).join(","))).join("\n");
+}
+function dataMsg(text) { document.getElementById("wzDataMsg").textContent = text; }
+function showCsvBox() {
+  const box = document.getElementById("wzCsv");
+  box.value = csvText(); box.classList.remove("hidden");
+  box.focus(); box.select();
+}
+async function exportCSV() {
+  if (!logRows.length) { dataMsg("The log is empty."); return; }
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = "prototype-log-" + (state.participant || "session") + "-" + stamp + ".csv";
+  let dl = null;
+  try { dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; } catch (e) { dl = null; }
+  if (!dl) { dataMsg("Saving files is not available here. Copy the text below instead."); showCsvBox(); return; }
+  try {
+    await dl.save({ filename: filename, data: csvText() });
+    dataMsg("Saved " + filename);
+  } catch (e) {
+    const code = e && e.code;
+    if (code === "declined") dataMsg("Save cancelled.");
+    else if (code === "rate_limited") dataMsg("A save prompt is already open. Try again in a moment.");
+    else { dataMsg("Saving is not available here. Copy the text below instead."); showCsvBox(); }
+  }
+}
+async function copyCSV() {
+  if (!logRows.length) { dataMsg("The log is empty."); return; }
+  try { await navigator.clipboard.writeText(csvText()); dataMsg("Log copied. Paste it into a .csv file."); }
+  catch (e) { dataMsg("Copy is blocked here. Select the text below and copy it."); showCsvBox(); }
+}
+
+/* ---------------- Dates ---------------- */
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function realToday() { return startOfDay(new Date()); }
+function simToday() { const d = realToday(); d.setDate(d.getDate() + state.offsetDays); return d; }
+function isoDate(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+  return y + "-" + m + "-" + day;
+}
+function parseISO(s) { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+function resolveDate(spec) {
+  if (/^[+-]\d+$/.test(spec)) { const d = realToday(); d.setDate(d.getDate() + Number(spec)); return isoDate(d); }
+  return spec;
+}
+function daysUntil(iso) { return Math.round((parseISO(iso) - simToday()) / 86400000); }
+function fmtDate(iso) {
+  try {
+    return parseISO(iso).toLocaleDateString(t().locale, { day: "numeric", month: "short", year: "numeric" });
+  } catch (e) { return iso; }
+}
+function statusOf(iso) {
+  const n = daysUntil(iso);
+  if (n < 0) return { cls: "past", text: t().past(-n), n };
+  if (n === 0) return { cls: "soon", text: t().today, n };
+  if (n <= 3) return { cls: "soon", text: t().daysLeft(n), n };
+  return { cls: "fine", text: t().daysLeft(n), n };
+}
+
+/* ---------------- i18n ---------------- */
+function t() { return T[state.lang] || T.en; }
+function applyLang() {
+  document.documentElement.lang = state.lang;
+  document.querySelectorAll("[data-t]").forEach(el => {
+    const v = t()[el.dataset.t];
+    if (typeof v === "string") el.textContent = v;
+  });
+  document.getElementById("brand").textContent = t().title;
+  document.title = t().title;
+  document.getElementById("langSelect").value = state.lang;
+}
+
+/* ---------------- Screens ---------------- */
+function show(id) {
+  ["screenHome", "screenScan", "screenResult", "screenDetail"].forEach(s =>
+    document.getElementById(s).classList.toggle("hidden", s !== id));
+  document.getElementById("dock").classList.toggle("hidden", id !== "screenHome");
+  window.scrollTo(0, 0);
+}
+function badgeHTML(type) {
+  const short = type === "useBy" ? t().useByShort : t().bestBeforeShort;
+  return '<div class="badge ' + type + '">' + TYPE_LABEL[type] + '<small>' + short + '</small></div>';
+}
+function explainHTML(type) {
+  return '<div class="explain ' + type + '">' + (type === "useBy" ? t().useByExplain : t().bestBeforeExplain) + '</div>';
+}
+function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+function renderList() {
+  const host = document.getElementById("list");
+  if (!state.items.length) {
+    host.innerHTML = '<div class="card empty">' + t().empty + '<div class="hint">' + t().scanHint + '</div></div>';
+    return;
+  }
+  const items = state.items.slice().sort((a, b) => a.date.localeCompare(b.date));
+  host.innerHTML = items.map(it => {
+    const st = statusOf(it.date);
+    return '<button class="card item" data-id="' + it.uid + '">' +
+      '<div class="meta"><div class="name">' + escapeHTML(it.name) + '</div>' +
+      '<div class="sub">' + fmtDate(it.date) + '</div>' +
+      '<div class="status ' + st.cls + '">' + st.text + '</div></div>' +
+      '<span class="tag ' + it.type + '">' + TYPE_LABEL[it.type] + '</span></button>';
+  }).join("");
+  host.querySelectorAll(".item").forEach(el => el.addEventListener("click", () => openDetail(el.dataset.id, "list")));
+}
+
+function renderResult() {
+  const card = document.getElementById("resultCard");
+  const p = pending;
+  const photo = p.photo ? '<img class="photo" src="' + p.photo + '" alt="">' : "";
+  if (p.failed && !editing) { editing = true; }
+  if (editing) {
+    card.innerHTML = photo +
+      (p.failed ? '<p class="status past">' + t().readFail + '</p>' : '<h2>' + t().edit + '</h2>') +
+      '<div class="name" style="font-weight:700;margin-top:8px">' + escapeHTML(p.name) + '</div>' +
+      '<label class="field">' + t().date + '<input type="date" id="editDate" value="' + (p.date || "") + '"></label>' +
+      '<label class="field">' + t().type + '</label>' +
+      '<div class="radio-row">' +
+      '<label><input type="radio" name="etype" value="useBy"' + (p.type === "useBy" ? " checked" : "") + '>Use by</label>' +
+      '<label><input type="radio" name="etype" value="bestBefore"' + (p.type === "bestBefore" ? " checked" : "") + '>Best before</label>' +
+      '</div>' +
+      '<div class="btn-row"><button class="btn secondary" id="editCancel">' + t().cancel + '</button>' +
+      '<button class="btn" id="editSave">' + t().save + '</button></div>';
+    document.getElementById("editCancel").onclick = () => {
+      if (p.failed) { log("result_cancelled", p.productId); pending = null; editing = false; show("screenHome"); renderList(); return; }
+      editing = false; renderResult();
+    };
+    document.getElementById("editSave").onclick = () => {
+      const nd = document.getElementById("editDate").value;
+      const ntEl = document.querySelector('input[name=etype]:checked');
+      if (!nd || !ntEl) return;
+      const nt = ntEl.value;
+      if (nd !== p.date) log("edit_date", p.productId + " " + (p.date || "none") + " -> " + nd);
+      if (nt !== p.type) log("edit_type", p.productId + " " + (p.type || "none") + " -> " + nt);
+      p.date = nd; p.type = nt; p.failed = false; editing = false;
+      renderResult();
+    };
+    return;
+  }
+  const st = statusOf(p.date);
+  card.innerHTML = photo +
+    '<div style="margin-top:12px;font-weight:700">' + escapeHTML(p.name) + '</div>' +
+    '<div style="margin-top:10px">' + badgeHTML(p.type) + '</div>' +
+    '<div class="bigdate">' + fmtDate(p.date) + '</div>' +
+    '<div class="status ' + st.cls + '">' + st.text + '</div>' +
+    explainHTML(p.type) +
+    '<h2>' + t().checkTitle + '</h2><div>' + t().isCorrect + '</div>' +
+    '<button class="btn" id="resConfirm">' + t().confirm + '</button>' +
+    '<button class="btn secondary" id="resEdit">' + t().edit + '</button>' +
+    '<div class="note">' + t().checkLabel + '</div>';
+  document.getElementById("resConfirm").onclick = () => {
+    const item = { uid: String(Date.now()), productId: p.productId, name: p.name, date: p.date, type: p.type, misread: p.misread };
+    state.items.push(item);
+    log("confirm_add", p.productId + " date=" + p.date + " type=" + p.type + (p.misread ? " (was misread, not corrected)" : ""));
+    pending = null; save(); renderWizardSelects(); show("screenHome"); renderList();
+  };
+  document.getElementById("resEdit").onclick = () => { log("edit_open", p.productId); editing = true; renderResult(); };
+}
+
+function openDetail(uid, source) {
+  const it = state.items.find(x => x.uid === uid);
+  if (!it) return;
+  currentDetail = uid;
+  log("view_item", it.productId + " from=" + source);
+  renderDetail();
+  show("screenDetail");
+}
+function renderDetail() {
+  const it = state.items.find(x => x.uid === currentDetail);
+  if (!it) { show("screenHome"); renderList(); return; }
+  const st = statusOf(it.date);
+  let pastMsg = "";
+  if (st.n < 0) pastMsg = '<p class="status past">' + (it.type === "useBy" ? t().expiredUseBy : t().expiredBest) + '</p>';
+  document.getElementById("detailCard").innerHTML =
+    '<div style="font-weight:700">' + escapeHTML(it.name) + '</div>' +
+    '<div style="margin-top:10px">' + badgeHTML(it.type) + '</div>' +
+    '<div class="bigdate">' + fmtDate(it.date) + '</div>' +
+    '<div class="status ' + st.cls + '">' + st.text + '</div>' + pastMsg +
+    explainHTML(it.type) +
+    '<div class="btn-row"><button class="btn" id="dEaten">' + t().eaten + '</button>' +
+    '<button class="btn danger" id="dBinned">' + t().binned + '</button></div>' +
+    '<div class="note">' + t().checkLabel + '</div>';
+  document.getElementById("dEaten").onclick = () => decide(it, "eaten");
+  document.getElementById("dBinned").onclick = () => decide(it, "thrown_away");
+}
+function decide(it, what) {
+  const st = statusOf(it.date);
+  log("decision_" + what, it.productId + " type=" + it.type + " days_to_date=" + st.n);
+  state.items = state.items.filter(x => x.uid !== it.uid);
+  save(); renderWizardSelects(); show("screenHome"); renderList();
+}
+
+/* ---------------- Scanning (Wizard of Oz) ---------------- */
+function allProducts() { return PRODUCT_SETS[state.appSet] || []; }
+function pickNextProduct() {
+  const list = allProducts();
+  if (state.nextOverride && state.nextOverride !== "auto") {
+    const p = list.find(x => x.id === state.nextOverride);
+    state.nextOverride = "auto";
+    if (p) return p;
+  }
+  const p = list[state.queueIndex % list.length];
+  state.queueIndex += 1;
+  return p;
+}
+function misreadDate(iso) {
+  const d = parseISO(iso);
+  const day = d.getDate(), mon = d.getMonth() + 1;
+  if (day <= 12 && day !== mon) return isoDate(new Date(d.getFullYear(), day - 1, mon)); // day/month swapped
+  d.setDate(d.getDate() + 10);
+  return isoDate(d);
+}
+function handlePhoto(file) {
+  const url = URL.createObjectURL(file);
+  document.getElementById("scanPhoto").src = url;
+  show("screenScan");
+  const prod = pickNextProduct();
+  const realDate = resolveDate(prod.date);
+  const failed = state.failNext;
+  const misread = !failed && state.misreadNext;
+  state.failNext = false; state.misreadNext = false;
+  document.getElementById("wzFail").checked = false;
+  document.getElementById("wzMisread").checked = false;
+  save();
+  log("photo_taken", prod.id);
+  setTimeout(() => {
+    pending = {
+      productId: prod.id, name: prod.name, photo: url, failed: failed, misread: misread,
+      date: failed ? "" : (misread ? misreadDate(realDate) : realDate),
+      type: failed ? "" : prod.type, trueDate: realDate
+    };
+    editing = false;
+    log(failed ? "result_failed" : "result_shown",
+      prod.id + " shown_date=" + (pending.date || "none") + " true_date=" + realDate + " type=" + prod.type + (misread ? " MISREAD" : ""));
+    renderResult();
+    show("screenResult");
+  }, 1600);
+}
+
+/* ---------------- Reminder ---------------- */
+let audioCtx = null;
+function unlockAudio() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    if (!audioCtx) audioCtx = new Ctx();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) { /* ignore */ }
+}
+function beep() {
+  try {
+    if (!audioCtx) return;
+    const ctx = audioCtx;
+    [0, 0.25].forEach(offset => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
+      g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + offset + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + 0.2);
+      o.start(ctx.currentTime + offset); o.stop(ctx.currentTime + offset + 0.22);
+    });
+  } catch (e) { /* ignore */ }
+}
+function sendReminder(uid) {
+  const it = state.items.find(x => x.uid === uid);
+  if (!it) return;
+  const past = daysUntil(it.date) < 0;
+  const msg = it.type === "useBy"
+    ? (past ? t().reminderUseByPast(it.name) : t().reminderUseBy(it.name))
+    : (past ? t().reminderBestPast(it.name) : t().reminderBest(it.name));
+  const host = document.getElementById("bannerHost");
+  host.innerHTML = '<div class="banner ' + it.type + '" role="alert"><div class="title">' + t().reminderTitle + '</div>' +
+    '<div>' + escapeHTML(msg) + '</div>' +
+    '<div class="btn-row"><button class="btn secondary" id="bDismiss">' + t().dismiss + '</button>' +
+    '<button class="btn" id="bOpen">' + t().open + '</button></div></div>';
+  try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) { }
+  beep();
+  log("reminder_shown", it.productId + " days_to_date=" + daysUntil(it.date));
+  document.getElementById("bDismiss").onclick = () => { host.innerHTML = ""; log("reminder_dismissed", it.productId); };
+  document.getElementById("bOpen").onclick = () => { host.innerHTML = ""; log("reminder_opened", it.productId); openDetail(uid, "reminder"); };
+}
+
+/* ---------------- Wizard panel ---------------- */
+let taps = [];
+function renderWizardSelects() {
+  const next = document.getElementById("wzNext");
+  next.innerHTML = '<option value="auto">Auto: next in queue</option>' +
+    allProducts().map(p => '<option value="' + p.id + '">' + p.id + ' ' + escapeHTML(p.name) + ' (' + p.type + ', ' + resolveDate(p.date) + ')</option>').join("");
+  next.value = state.nextOverride || "auto";
+  const rem = document.getElementById("wzRemindItem");
+  rem.innerHTML = state.items.length
+    ? state.items.map(it => '<option value="' + it.uid + '">' + it.productId + ' ' + escapeHTML(it.name) + '</option>').join("")
+    : '<option value="">(no items yet)</option>';
+  const all = PRODUCT_SETS.A.concat(PRODUCT_SETS.B);
+  document.getElementById("wzMarkItem").innerHTML = all.map(p => '<option value="' + p.id + '">' + p.id + ' ' + escapeHTML(p.name) + '</option>').join("");
+  document.getElementById("wzToday").textContent = isoDate(simToday()) + (state.offsetDays ? " (" + (state.offsetDays > 0 ? "+" : "") + state.offsetDays + "d)" : " (real)");
+}
+function renderWizardLog() {
+  const el = document.getElementById("wzLog");
+  if (!el) return;
+  el.textContent = logRows.slice(-30).map(r => r.timestamp.slice(11, 19) + " " + r.participant + " " + r.event + " " + r.detail).join("\n");
+  el.scrollTop = el.scrollHeight;
+}
+function openWizard() {
+  document.getElementById("wzParticipant").value = state.participant;
+  document.getElementById("wzSet").value = state.appSet;
+  document.getElementById("wzOrder").value = state.order;
+  document.getElementById("wzMisread").checked = state.misreadNext;
+  document.getElementById("wzFail").checked = state.failNext;
+  renderWizardSelects(); renderWizardLog();
+  document.getElementById("wizard").classList.remove("hidden");
+}
+
+/* ---------------- Wire up ---------------- */
+function init() {
+  load();
+  applyLang(); renderList(); show("screenHome");
+
+  document.getElementById("langSelect").addEventListener("change", e => {
+    const from = state.lang; state.lang = e.target.value; save();
+    log("language_change", from + " -> " + state.lang);
+    applyLang(); renderList();
+    if (!document.getElementById("screenResult").classList.contains("hidden") && pending) renderResult();
+    if (!document.getElementById("screenDetail").classList.contains("hidden")) renderDetail();
+  });
+
+  const camera = document.getElementById("cameraInput");
+  document.getElementById("scanBtn").addEventListener("click", () => { unlockAudio(); log("scan_pressed"); camera.click(); });
+  camera.addEventListener("change", () => {
+    const f = camera.files && camera.files[0];
+    if (f) handlePhoto(f); else log("scan_cancelled");
+    camera.value = "";
+  });
+
+  document.getElementById("resultBack").onclick = () => {
+    if (pending) log("result_cancelled", pending.productId);
+    pending = null; editing = false; show("screenHome"); renderList();
+  };
+  document.getElementById("detailBack").onclick = () => { show("screenHome"); renderList(); };
+
+  // Hidden wizard: tap the title 3 times within 1 second
+  document.getElementById("brand").addEventListener("click", () => {
+    const now = Date.now();
+    taps = taps.filter(x => now - x < 1000); taps.push(now);
+    if (taps.length >= 3) { taps = []; openWizard(); }
+  });
+  document.getElementById("wzClose").onclick = () => document.getElementById("wizard").classList.add("hidden");
+  document.getElementById("wzStart").onclick = () => {
+    state.participant = document.getElementById("wzParticipant").value.trim();
+    state.appSet = document.getElementById("wzSet").value;
+    state.order = document.getElementById("wzOrder").value;
+    state.items = []; state.offsetDays = 0; state.queueIndex = 0; state.nextOverride = "auto";
+    state.misreadNext = false; state.failNext = false; state.lang = "en";
+    save(); applyLang(); renderList(); renderWizardSelects();
+    log("session_start", "set=" + state.appSet + " order=" + state.order);
+  };
+  document.getElementById("wzNext").onchange = e => { state.nextOverride = e.target.value; save(); };
+  document.getElementById("wzMisread").onchange = e => { state.misreadNext = e.target.checked; save(); };
+  document.getElementById("wzFail").onchange = e => { state.failNext = e.target.checked; save(); };
+  document.querySelectorAll("[data-days]").forEach(b => b.addEventListener("click", () => {
+    state.offsetDays += Number(b.dataset.days); save();
+    log("simulated_day_change", "offset=" + state.offsetDays);
+    renderWizardSelects(); renderList();
+  }));
+  document.getElementById("wzResetDay").onclick = () => {
+    state.offsetDays = 0; save(); log("simulated_day_change", "offset=0"); renderWizardSelects(); renderList();
+  };
+  document.getElementById("wzRemind").onclick = () => {
+    const uid = document.getElementById("wzRemindItem").value;
+    if (!uid) return;
+    unlockAudio();
+    document.getElementById("wizard").classList.add("hidden");
+    setTimeout(() => sendReminder(uid), 2000);
+  };
+  document.getElementById("wzMarkStart").onclick = () =>
+    log("task_start", document.getElementById("wzCond").value + " " + document.getElementById("wzMarkItem").value);
+  document.getElementById("wzMarkEnd").onclick = () =>
+    log("task_end", document.getElementById("wzCond").value + " " + document.getElementById("wzMarkItem").value);
+  document.getElementById("wzAddNote").onclick = () => {
+    const n = document.getElementById("wzNote");
+    if (n.value.trim()) { log("note", n.value.trim()); n.value = ""; }
+  };
+  document.getElementById("wzExport").onclick = exportCSV;
+  document.getElementById("wzCopy").onclick = copyCSV;
+  document.getElementById("wzClearLog").onclick = () => document.getElementById("wzClearConfirm").classList.remove("hidden");
+  document.getElementById("wzClearNo").onclick = () => document.getElementById("wzClearConfirm").classList.add("hidden");
+  document.getElementById("wzClearYes").onclick = () => {
+    logRows = []; save(); renderWizardLog();
+    document.getElementById("wzClearConfirm").classList.add("hidden");
+    document.getElementById("wzCsv").classList.add("hidden");
+    dataMsg("All logs deleted.");
+  };
+}
+init();
+</script>
+
+</body></html>
